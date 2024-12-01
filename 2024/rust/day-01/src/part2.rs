@@ -1,30 +1,19 @@
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
-    let mut left = vec![];
-    let mut right = vec![];
-
+    let mut left_values = vec![];
+    let mut right_values = vec![];
     for line in input.lines() {
-        let mut items = line.split_whitespace();
-        left.push(
-            items.next().unwrap().parse::<usize>().unwrap(),
-        );
-        right.push(
-            items.next().unwrap().parse::<usize>().unwrap(),
-        );
+        let mut values = line.split_whitespace().map(|x| x.parse::<i32>().unwrap());
+        left_values.push(values.next().unwrap());
+        right_values.push(values.next().unwrap());
     }
 
-    let result: usize = left
-        .iter()
-        .map(|number| {
-            number
-                * right
-                    .iter()
-                    .filter(|r| &number == r)
-                    .count()
-        })
-        .sum();
+    let similarity: i32 = left_values.iter().map(|left| {
+       let count = right_values.iter().filter(|&right| left == right).count();
+       count as i32 * left
+    }).sum();
 
-    Ok(result.to_string())
+    Ok(similarity.to_string())
 }
 
 #[cfg(test)]

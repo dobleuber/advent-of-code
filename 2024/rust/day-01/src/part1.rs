@@ -1,26 +1,25 @@
-#[tracing::instrument]
-pub fn process(input: &str) -> miette::Result<String> {
-    let mut left = vec![];
-    let mut right = vec![];
+use tracing::debug;
 
+#[tracing::instrument]
+pub fn process(input: &str) -> miette::Result<i32> {
+    let mut left_values = vec![];
+    let mut right_values = vec![];
     for line in input.lines() {
-        let mut items = line.split_whitespace();
-        left.push(
-            items.next().unwrap().parse::<i32>().unwrap(),
-        );
-        right.push(
-            items.next().unwrap().parse::<i32>().unwrap(),
-        );
+        let mut values = line.split_whitespace().map(|x| x.parse::<i32>().unwrap());
+        left_values.push(values.next().unwrap());
+        right_values.push(values.next().unwrap());
     }
 
-    left.sort();
-    right.sort();
+    left_values.sort();
+    right_values.sort();
+    let distance = std::iter::zip(left_values, right_values)
+        .fold(0, |acc, (left, right)| {
+            let diff = right - left;
+            debug!("{} - {} = {}", right, left, diff);
+            acc + diff.abs()
+        });
 
-    let result: i32 = std::iter::zip(left, right)
-        .map(|(l, r)| (l - r).abs())
-        .sum();
-
-    Ok(result.to_string())
+    Ok(distance)
 }
 
 #[cfg(test)]
@@ -35,7 +34,7 @@ mod tests {
 1   3
 3   9
 3   3";
-        assert_eq!("11", process(input)?);
+        assert_eq!(11, process(input)?);
         Ok(())
     }
 }
