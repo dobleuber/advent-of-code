@@ -5,7 +5,7 @@ use std::fmt;
 enum MapTile {
     Obstacle,
     Guard(Direction),
-    Visited,
+    Visited(Direction),
     NewObstacle,
 }
 
@@ -17,6 +17,21 @@ enum Direction {
     West,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Visited(usize,usize,Direction);
+
+impl Visited {
+    fn new(x: usize, y: usize, direction: Direction) -> Self {
+        Self(x, y, direction)
+    }
+}
+
+impl Default for Visited {
+    fn default() -> Self {
+        Self(0, 0, Direction::North)
+    }
+}
+
 
 #[derive(Debug, Clone)]
 struct Map {
@@ -24,7 +39,7 @@ struct Map {
     map: BTreeMap<(usize, usize), MapTile>,
     position: Position,
     limits: (usize, usize),
-    changes: Vec<(usize, usize, Direction)>,
+    visited: Vec<Visited>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,20 +111,19 @@ impl Map {
             original_position: position,
             position,
             limits : (num_rows, num_cols),
-            changes: Vec::new(),
+            visited: Vec::new(),
         }
     }
 
     fn is_empty(&self, x: i32, y: i32) -> bool {
-        if x < 0 || y < 0 {
+        if x < 0 || y < 0 || x >= self.limits.1 as i32 || y >= self.limits.0 as i32 {
             return true;
         }
-        self.map.get(&(y as usize, x as usize)).map_or(true, |tile| matches!(tile, MapTile::Visited))
+        self.map.get(&(y as usize, x as usize)).map_or(true, |tile| matches!(tile, MapTile::Visited(_)))
     }
 
     fn advance(&mut self) -> bool {
         let old_position = self.position;
-        let mut is_change = false;
 
         loop {
             let (x, y) = match self.position.direction {
@@ -120,23 +134,20 @@ impl Map {
             };
 
             if self.is_empty(x, y) {
-                if is_change {
-                    if self.changes.contains(&(old_position.x as usize, old_position.y as usize, self.position.direction)) {
-                        return true;
-                    }
-                    self.changes.push((old_position.x as usize, old_position.y as usize, self.position.direction));
-                }
                 self.position.set(x, y);
                 self.map.entry((y as usize, x as usize)).and_modify(|title|
                     *title = MapTile::Guard(self.position.direction)
                 ).or_insert(MapTile::Guard(self.position.direction));
                 self.map.entry((old_position.y as usize, old_position.x as usize)).and_modify(|title|
-                    *title = MapTile::Visited
+                    *title = MapTile::Visited(self.position.direction)
                 );
+                if self.visited.iter().any(|visited| visited == &Visited::new(old_position.x as usize, old_position.y as usize, old_position.direction)) {
+                    return true;
+                }
+                self.visited.push(Visited::new(old_position.x as usize, old_position.y as usize, old_position.direction));
                 break;
             }
             else {
-                is_change = true;
                 self.position.direction = match self.position.direction {
                     Direction::North => Direction::East,
                     Direction::East => Direction::South,
@@ -156,13 +167,14 @@ impl Map {
                 is_cycle = true;
                 break;
             }
+            // println!("{}", self);
             let position = self.position;
-            if position.x < 0 || position.y < 0 || position.x >= self.limits.1 as i32 || position.y >= self.limits.0 as i32 {
+            if position.x < 0 || position.y < 0 || position.x >= self.limits.1 as i32 || position.y >= self.limits.1 as i32 {
                 break;
             }
         }
         let visited = self.map.iter()
-            .filter(|(_, tile)| matches!(tile, MapTile::Visited))
+            .filter(|(_, tile)| matches!(tile, MapTile::Visited(_)))
             .count();
         (visited, is_cycle)
     }
@@ -176,11 +188,11 @@ impl Map {
             Some(MapTile::Obstacle) => None,
             _ => {
                 let mut new_map = self.clone();
-                new_map.map.retain(|_, tile| !matches!(tile, MapTile::Visited));
+                new_map.map.retain(|_, tile| !matches!(tile, MapTile::Visited(_)));
                 new_map.map.insert((x, y), MapTile::NewObstacle);
                 new_map.position = new_map.original_position;
                 new_map.map.insert((new_map.position.y as usize, new_map.position.x as usize), MapTile::Guard(new_map.position.direction));
-                new_map.changes.clear();
+                new_map.visited.clear();
                 Some(new_map)
             }   
         }
@@ -200,7 +212,14 @@ impl fmt::Display for Map {
                         Direction::East => '>',          
                         Direction::West => '<',           
                     },
-                    Some(MapTile::Visited) => 'x',        
+                    Some(MapTile::Visited(dir)) => {
+                        match dir {
+                            Direction::North => '↑',          
+                            Direction::South => '↓',          
+                            Direction::East => '→',          
+                            Direction::West => '←',           
+                        }
+                    },        
                     Some(MapTile::NewObstacle) => 'O',   
                     None => '.',                          
                 };
@@ -219,6 +238,13 @@ pub fn process(input: &str) -> miette::Result<String> {
     map.solve();
     let mut alternatives =  0;
 
+    // if let Some(mut map) = map.add_obstacle(5, 9) {
+    //     let (_, is_cycle) = map.solve();
+    //     if is_cycle {
+    //         println!("try: {}", map);
+    //         alternatives += 1;
+    //     }
+    // }
 
 
     for x in 0..map.limits.1 {
