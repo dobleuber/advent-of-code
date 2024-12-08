@@ -6,7 +6,7 @@ struct Equation {
     result: i64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Operator {
     Add,
     Multiply,
@@ -17,12 +17,9 @@ impl Equation {
     fn is_valid(&self) -> bool {
         let operators = [Operator::Add, Operator::Multiply, Operator::Concatenate];
         let total_operators = self.operands.len() - 1;
-        // Crear iteradores para el producto cartesiano
-        let operator_ranges = std::iter::repeat(&operators).take(total_operators);
 
-        // Generar combinaciones con repetición como un producto cartesiano
-        let combinations = operator_ranges
-            .map(|ops| ops.iter()) 
+        let combinations = (0..total_operators)
+            .map(|_| operators) 
             .multi_cartesian_product(); 
 
         // Imprimir las combinaciones generadas
@@ -70,7 +67,6 @@ pub fn process(input: &str) -> miette::Result<String> {
 
     for equation in equations.iter() {
         if equation.is_valid() {
-            println!("{:?} is valid", equation);
             total += equation.result;
         }
     }
