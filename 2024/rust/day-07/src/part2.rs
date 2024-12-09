@@ -22,7 +22,6 @@ impl Equation {
             .map(|_| operators) 
             .multi_cartesian_product(); 
 
-        // Imprimir las combinaciones generadas
         for combination in combinations {
             let mut result = self.operands[0];
             for (operator, operand) in izip!(combination, self.operands.iter().skip(1)) {
