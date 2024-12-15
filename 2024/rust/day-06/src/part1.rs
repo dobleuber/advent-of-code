@@ -16,7 +16,6 @@ enum Direction {
     West,
 }
 
-
 #[derive(Debug, Clone)]
 struct Map {
     map: BTreeMap<(usize, usize), MapTile>,
@@ -33,7 +32,11 @@ struct Position {
 
 impl Default for Position {
     fn default() -> Self {
-        Self { x: 0, y: 0 , direction: Direction::North }
+        Self {
+            x: 0,
+            y: 0,
+            direction: Direction::North,
+        }
     }
 }
 
@@ -55,35 +58,37 @@ impl Map {
                     .map(move |(col, title)| match title {
                         '#' => ((row, col), MapTile::Obstacle),
                         '.' => ((row, col), MapTile::Empty),
-                        '^'|'<'|'v'|'>' => {
-                            ((row, col), MapTile::Guard(match title {
+                        '^' | '<' | 'v' | '>' => (
+                            (row, col),
+                            MapTile::Guard(match title {
                                 '^' => Direction::North,
                                 '<' => Direction::West,
                                 'v' => Direction::South,
                                 '>' => Direction::East,
                                 _ => unreachable!(),
-                            }))
-                        },
+                            }),
+                        ),
                         _ => panic!("unexpected character in map"),
                     })
             })
             .collect();
 
-        let position = map.iter()
+        let position = map
+            .iter()
             .find(|(_, tile)| matches!(tile, MapTile::Guard(_)))
-            .map(|((row, col), tile)| {
-                Position {
-                    x: *col as i32,
-                    y: *row as i32,
-                    direction: match tile {
-                        MapTile::Guard(direction) => *direction,
-                        _ => unreachable!(),
-                    }
-                }
-            }).unwrap_or_default();
-        
+            .map(|((row, col), tile)| Position {
+                x: *col as i32,
+                y: *row as i32,
+                direction: match tile {
+                    MapTile::Guard(direction) => *direction,
+                    _ => unreachable!(),
+                },
+            })
+            .unwrap_or_default();
+
         let num_rows = input.lines().count();
-        let num_cols = input.lines()
+        let num_cols = input
+            .lines()
             .next()
             .map(|line| line.chars().count())
             .unwrap_or(0);
@@ -91,7 +96,7 @@ impl Map {
         Self {
             map,
             position,
-            limits : (num_rows, num_cols),
+            limits: (num_rows, num_cols),
         }
     }
 
@@ -99,7 +104,11 @@ impl Map {
         if x < 0 || y < 0 {
             return true;
         }
-        self.map.get(&(y as usize, x as usize)).map_or(true, |tile| matches!(tile, MapTile::Empty | MapTile::Visited))
+        self.map
+            .get(&(y as usize, x as usize))
+            .map_or(true, |tile| {
+                matches!(tile, MapTile::Empty | MapTile::Visited)
+            })
     }
 
     fn advance(&mut self) {
@@ -115,15 +124,14 @@ impl Map {
 
             if self.is_empty(x, y) {
                 self.position.set(x, y);
-                self.map.entry((y as usize, x as usize)).and_modify(|title|
-                    *title = MapTile::Guard(self.position.direction)
-                );
-                self.map.entry((old_position.y as usize, old_position.x as usize)).and_modify(|title|
-                    *title = MapTile::Visited
-                );
+                self.map
+                    .entry((y as usize, x as usize))
+                    .and_modify(|title| *title = MapTile::Guard(self.position.direction));
+                self.map
+                    .entry((old_position.y as usize, old_position.x as usize))
+                    .and_modify(|title| *title = MapTile::Visited);
                 break;
-            }
-            else {
+            } else {
                 self.position.direction = match self.position.direction {
                     Direction::North => Direction::East,
                     Direction::East => Direction::South,
@@ -132,7 +140,6 @@ impl Map {
                 };
             }
         }
-
     }
 
     fn solve(&mut self) -> usize {
@@ -141,17 +148,21 @@ impl Map {
             self.advance();
             steps += 1;
             let position = self.position;
-            if position.x < 0 || position.y < 0 || position.x >= self.limits.1 as i32 || position.y >= self.limits.0 as i32 {
+            if position.x < 0
+                || position.y < 0
+                || position.x >= LIMITS.1 as i32
+                || position.y >= LIMITS.0 as i32
+            {
                 break;
             }
         }
         println!("steps: {}", steps);
-        self.map.iter()
+        self.map
+            .iter()
             .filter(|(_, tile)| matches!(tile, MapTile::Visited))
             .count()
     }
 }
-
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
